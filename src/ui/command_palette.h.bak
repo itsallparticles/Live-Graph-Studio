@@ -1,0 +1,86 @@
+#ifndef COMMAND_PALETTE_H
+#define COMMAND_PALETTE_H
+
+#include "../common.h"
+#include "../graph/graph_types.h"
+#include "../system/pad.h"
+#include "../runtime/runtime.h"
+#include <stdint.h>
+
+/* ============================================================
+ * Command Palette Configuration
+ * ============================================================ */
+#define CMD_PALETTE_MAX_COMMANDS   32
+#define CMD_PALETTE_MAX_VISIBLE    10
+#define CMD_PALETTE_WIDTH          180
+#define CMD_PALETTE_ITEM_HEIGHT    16
+
+/* ============================================================
+ * Forward Declarations
+ * ============================================================ */
+struct EditorState;
+
+/* ============================================================
+ * Command Definition
+ * ============================================================ */
+typedef int (*CmdIsEnabledFunc)(struct EditorState *state, RuntimeContext *ctx);
+typedef void (*CmdExecuteFunc)(struct EditorState *state, RuntimeContext *ctx);
+
+typedef struct CommandDef {
+    const char       *label;
+    CmdIsEnabledFunc  is_enabled;
+    CmdExecuteFunc    execute;
+} CommandDef;
+
+/* ============================================================
+ * Command Palette State
+ * ============================================================ */
+typedef struct CommandPalette {
+    uint8_t  is_open;
+    uint8_t  selected_index;    /* Index into filtered list */
+    uint8_t  scroll_offset;
+    uint8_t  filtered_count;
+    uint8_t  filtered[CMD_PALETTE_MAX_COMMANDS];  /* Indices of enabled commands */
+} CommandPalette;
+
+/* ============================================================
+ * Command Palette API
+ * ============================================================ */
+
+/* Initialize palette state (call once at startup) */
+void cmd_palette_init(CommandPalette *palette);
+
+/* Open the command palette (rebuilds filtered list) */
+void cmd_palette_open(CommandPalette *palette, struct EditorState *state, RuntimeContext *ctx);
+
+/* Close the command palette */
+void cmd_palette_close(CommandPalette *palette);
+
+/* Check if palette is currently open */
+int cmd_palette_is_open(const CommandPalette *palette);
+
+/* Update palette input handling.
+ * Returns 1 if a command was executed, 0 otherwise.
+ * Caller should suppress normal editor input while palette is open. */
+int cmd_palette_update(CommandPalette *palette,
+                       struct EditorState *state,
+                       RuntimeContext *ctx,
+                       const PadState *now,
+                       const PadState *prev);
+
+/* Render the command palette overlay */
+void cmd_palette_draw(const CommandPalette *palette,
+                      void (*rect_filled)(int x, int y, int w, int h, uint32_t color),
+                      void (*draw_text)(int x, int y, uint32_t color, const char *text));
+
+/* ============================================================
+ * Command Registration (internal use)
+ * ============================================================ */
+
+/* Get total number of registered commands */
+uint8_t cmd_palette_get_command_count(void);
+
+/* Get command definition by index */
+const CommandDef *cmd_palette_get_command(uint8_t index);
+
+#endif /* COMMAND_PALETTE_H */
